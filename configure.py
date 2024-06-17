@@ -1,7 +1,7 @@
 # gEMA/configure.py
 # Configures a user defined simulation object.
 
-import m5, json
+import m5, json, inspect
 from gem5.components import *
 from gem5.components.processors.cpu_types import *
 from gem5.components.memory import *
@@ -21,20 +21,20 @@ from gem5.components.cachehierarchies.classic.private_l1_cache_hierarchy import 
 )
 from gem5.components.processors.simple_processor import SimpleProcessor
 
-
 def generate_config(board_info):
-    brd = board_info["board"]["type"]
+    brd = eval(board_info["board"]["type"])
     clk = f"{board_info['board']['clk']}GHz"
-    cpu_type = CPUTypes[board_info["processor"]["type"].upper()]
+    proc = eval(board_info["processor"]["type"])
+    cpu_type = CPUTypes[board_info["processor"]["cpu"].upper()]
     isa = ISA[board_info["processor"]["isa"].upper()]
     ncores = int(board_info["processor"]["ncores"])
     mem_type = eval(board_info["memory"]["type"])
     msize = f"{board_info['memory']['size']}MB"
     cache = get_cache_configuration(board_info["cache"])
 
-    configuration = SimpleBoard(
+    configuration = brd(
         clk_freq=clk,
-        processor=SimpleProcessor(cpu_type=cpu_type, isa=isa, num_cores=ncores),
+        processor=proc(cpu_type=cpu_type, isa=isa, num_cores=ncores),
         memory=mem_type(size=msize),
         cache_hierarchy=cache,
     )
@@ -49,36 +49,28 @@ def generate_config(board_info):
 
 
 def get_cache_configuration(cache_config):
-    cache_type = cache_config["type"]
-    match cache_type:
-        case "NoCache":
-            return NoCache()
+    cache_opts = {
+        "class" : globals()[cache_config["type"]],
+        "l1d_size" : f"{cache_config['l1d_size']}KiB",
+        "l1i_size" : f"{cache_config['l1i_size']}KiB",
+        "l2_size" : f"{cache_config['l2_size']}KiB",
+        "l1d_assoc" : cache_config["l1d_assoc"],
+        "l1i_assoc" : cache_config["l1i_assoc"],
+        "l2_assoc" : cache_config["l2_assoc"]
+        }
 
-        case "PrivateL1CacheHierarchy":
-            return PrivateL1CacheHierarchy(
-                l1d_size=f"{cache_config['l1d_size']}KiB",
-                l1i_size=f"{cache_config['l1i_size']}KiB"
-            )
+    cache_params = [
+        param
+        for param in inspect.signature(cache_opts["class"].__init__).parameters
+        if param not in ("self", "cls", "*args", "**kwargs")
+        ]
 
-        case "PrivateL1SharedL2CacheHierarchy":
-            return PrivateL1SharedL2CacheHierarchy(
-                l1d_size=f"{cache_config['l1d_size']}KiB",
-                l1i_size=f"{cache_config['l1i_size']}KiB",
-                l2_size=f"{cache_config['l2_size']}KiB",
-                l1d_assoc=cache_config["l1d_assoc"],
-                l1i_assoc=cache_config["l1i_assoc"],
-                l2_assoc=cache_config["l2_assoc"]
-            )
+    init_params = {key: value for key, value in cache_opts.items() if key in cache_params}
 
-        case "PrivateL1PrivateL2CacheHierarchy":
-            return PrivateL1PrivateL2CacheHierarchy(
-                l1d_size=f"{cache_config['l1d_size']}KiB",
-                l1i_size=f"{cache_config['l1i_size']}KiB",
-                l2_size=f"{cache_config['l2_size']}KiB"
-            )
-
-        case _:
-            raise ValueError(f"Unsupported cache type: {cache_type}")
+    try:
+        return cache_opts["class"](**init_params)
+    except ValueError:
+        print(f"Failed to generate cache: {cache_opts['class']}")
 
 
 def set_resource(board, resource_type, resource):
