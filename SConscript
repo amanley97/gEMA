@@ -1,7 +1,7 @@
 # -*- mode:python -*-
 Import('*')
 
-# BACKEND API SOURCES
+# gEMA SOURCES
 PySource('gem5.gEMA', './__init__.py')
 PySource('gem5.gEMA', './configure.py')
 PySource('gem5.gEMA', './handler.py')

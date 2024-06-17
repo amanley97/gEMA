@@ -1,3 +1,6 @@
+# gEMA/handler.py
+# Handles API endpoints.
+
 import json, os, multiprocessing
 from http.server import BaseHTTPRequestHandler
 from .obtain import get_config_opts

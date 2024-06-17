@@ -1,4 +1,6 @@
 # gEMA/configure.py
+# Configures a user defined simulation object.
+
 import m5, json
 from gem5.components import *
 from gem5.components.processors.cpu_types import *

@@ -1,4 +1,6 @@
 # gEMA/server.py
+# Runs the gEMA backend and awaits external commands.
+
 import sys, os
 from http.server import HTTPServer
 from .handler import BackendHandler

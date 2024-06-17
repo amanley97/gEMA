@@ -1,4 +1,6 @@
 # gEMA/obtain.py
+# Obtains available configuration oftions from gem5.
+
 import inspect, json
 from .configure import *
 from gem5.components import *
