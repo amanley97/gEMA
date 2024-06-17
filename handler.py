@@ -1,83 +1,95 @@
-# gEMA/handler.py
-import json
-import multiprocessing
+import json, os, multiprocessing
 from http.server import BaseHTTPRequestHandler
-from .obtain import get_mem_types, get_cpu_types, get_board_types
+from .obtain import get_config_opts
+from .configure import generate_config
+
 
 class BackendHandler(BaseHTTPRequestHandler):
-    user_data_storage = {}
+    saved_configs = {}
+
+    def _set_headers(self, status=200, content_type="application/json"):
+        """Helper method to set HTTP response headers."""
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.end_headers()
 
     def do_GET(self):
-        if self.path == '/get-mem-types':
-            self.handle_mem_types()
-        elif self.path == '/get-cpu-types':
-            self.handle_cpu_types()
-        elif self.path == '/get-board-types':
-            self.handle_board_types()
-        else:
-            self.send_error(404, 'Not Found')
+        """Handle GET requests."""
+        endpoints = {
+                    "/config": self.send_config_options, 
+                    "/help": self.list_endpoints
+                    }
+        handler = endpoints.get(self.path, self.send_not_found)
+        handler()
 
     def do_PUT(self):
-        if self.path == '/run-simulation':
-            self.handle_run_simulator()
-        elif self.path == '/shutdown':
+        """Handle PUT requests."""
+        path = self.path.split('/')
+        
+        if self.path == "/shutdown":
             self.handle_shutdown()
-        elif self.path == '/user-data':
-            self.handle_user_data()
+        elif len(path) == 4 and path[1] == "simulation":
+            sim_id = path[2]
+            if path[3] == "run":
+                self.handle_run_simulator(sim_id)
+            elif path[3] == "configure":
+                self.handle_external_data(sim_id)
+            else:
+                self.wfile.write(b"Simulation subcommand invalid.")
         else:
-            self.send_error(404, 'Not Found')
+            self.send_not_found()
 
-    def handle_mem_types(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(get_mem_types())
+    def send_config_options(self):
+        """Send configuration options to the client."""
+        self._set_headers()
+        self.wfile.write(get_config_opts())
 
-    def handle_cpu_types(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(get_cpu_types())
+    def list_endpoints(self):
+        """List available HTTP endpoints."""
+        self._set_headers()
+        endpoints = {
+            "GET /help": "Displays available endpoints",
+            "GET /config": "Get configuration options",
+            "PUT /simulation/{sim_id}/configure": "Submit user data for simulation configuration",
+            "PUT /simulation/{sim_id}/run": "Run the gem5 simulation",
+            "PUT /shutdown": "Shutdown the server",
+        }
+        self.wfile.write(json.dumps(endpoints, indent=4).encode())
 
-    def handle_board_types(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(get_board_types())
+    def send_not_found(self):
+        """Send a 404 Not Found response."""
+        self.send_error(404, "Not Found")
 
-    def handle_run_simulator(self):
-        process = multiprocessing.Process(target=self.server_instance.run_gem5_simulator)
+    def handle_run_simulator(self, id):
+        """Handle request to run a simulation in a separate process."""
+        self._set_headers()
+        process = multiprocessing.Process(
+            target=self.server_instance.run_gem5_simulator(id)
+        )
         process.start()
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(b"Simulator started in a separate thread\n")
+        self.wfile.write((f"Starting simulation id: {id}\n").encode())
         process.join()
-
         self.wfile.write(b"Simulation Complete\n")
 
     def handle_shutdown(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
+        """Handle request to shutdown the server."""
+        self._set_headers()
         self.wfile.write(b"Shutting down server\n")
+        self.wfile.flush()
+        print(f"Terminating process {os.getpid()}.")
+        os._exit(0)
 
-    def get_user_data(cls, user_id):
-        return cls.user_data_storage.get(user_id)
-
-    def handle_user_data(self):
+    def handle_external_data(self, id):
+        """Handle request to store user data."""
         try:
-            content_length = int(self.headers['Content-Length'])
+            content_length = int(self.headers["Content-Length"])
             data = self.rfile.read(content_length)
-            received_data = json.loads(data.decode('utf-8'))
-
-            user_id = 'default'
-            BackendHandler.user_data_storage[user_id] = received_data
-            self.send_response(200)
-
+            received_data = json.loads(data.decode("utf-8"))
+            obj = generate_config(received_data)
+            print(f"sim_id: {id} generated.")
+            msg = f"Configured gem5 object, sim_id: {id}. Ready to Simulate!".encode()
+            self.saved_configs[id] = obj
+            self._set_headers()
+            self.wfile.write(msg)
         except Exception as e:
-            print(f"Error processing PUT request: {e}")
-            self.send_response(500, {"error": "Internal Server Error"})
-
-        self.end_headers()
-        self.wfile.write(b"Successfully configured gem5. Ready to Simulate!")
+            self.send_error(500, f"Internal Server Error: {str(e)}")

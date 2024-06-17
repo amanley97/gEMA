@@ -4,53 +4,57 @@ from http.server import HTTPServer
 from .handler import BackendHandler
 from .obtain import *
 
+
 class BackendServer:
     def __init__(self, port=5000):
         self.port = port
-        self.brd_config = None
+        self.config = None
         self.handler = self.handler_factory()
 
     def handler_factory(self):
         # Factory function to create a handler with access to the server instance
         server_instance = self
+
         class CustomHandler(BackendHandler):
             def __init__(self, *args, **kwargs):
                 self.server_instance = server_instance
                 super().__init__(*args, **kwargs)
+
         return CustomHandler
 
     def run_server(self):
-        server_address = ('', self.port)
+        server_address = ("", self.port)
         httpd = HTTPServer(server_address, self.handler)
 
-        print(f'Starting server on port {self.port}...')
+        print(f"""
+               Starting server on port {self.port}.
+               For help, access /help on the server URL or consult the documentation.
+               """)
         httpd.serve_forever()
 
-    def run_gem5_simulator(self):
-        with open("./m5out/stats.txt", 'r+') as file:
+    def run_gem5_simulator(self, id):
+        with open("./m5out/stats.txt", "r+") as file:
             file.seek(0)
             file.truncate()
 
-        with open('m5out/output.txt', "w") as f:
+        with open(f"m5out/output{id}.txt", "w") as f:
             sys.stdout = f
             sys.stderr = f
-            print("Simulation PID: ", os.getpid())
-            user_id = 'default'
-            data = self.handler.user_data_storage.get(user_id)
-            if self.brd_config is None:
-                self.brd_config = generate_config(data)
+            print(f"Simulation ID: {id} PID: {os.getpid()}")
+            self.config = self.handler.saved_configs.get(id)
+            if self.config is None:
+                print("Failed to obtain config.")
             else:
-                del self.brd_config
-                self.brd_config = generate_config(data)
-            simulator = Simulator(board=self.brd_config)
-            simulator.run()
-            print(
-                "Exiting @ tick {} because {}.".format(
-                    simulator.get_current_tick(), simulator.get_last_exit_event_cause()
+                print(f"Received config for id: {id}")
+                simulator = Simulator(board=self.config)
+                simulator.run()
+                print(
+                    "Exiting @ tick {} because {}.".format(
+                        simulator.get_current_tick(), simulator.get_last_exit_event_cause()
+                    )
                 )
-            )
-            sys.stdout.flush()
-            sys.stderr.flush()
+                sys.stdout.flush()
+                sys.stderr.flush()
 
         dump()
         reset()
