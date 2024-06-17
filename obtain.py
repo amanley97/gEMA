@@ -39,7 +39,7 @@ def get_config_opts():
             "PrivateL1SharedL2CacheHierarchy",
             "PrivateL1PrivateL2CacheHierarchy",
             "PrivateL1CacheHierarchy",
-        ]  # Consider improving by fetching dynamically
+        ]  # TODO: Fetch the cache types dynamically.
         cache_class_objects = [
             globals()[name] for name in cache_types if name in globals()
         ]
