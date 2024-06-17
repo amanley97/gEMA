@@ -2,9 +2,9 @@
 Import('*')
 
 # BACKEND API SOURCES
-PySource('gem5.backend_api', './__init__.py')
-PySource('gem5.backend_api', './configure.py')
-PySource('gem5.backend_api', './handler.py')
-PySource('gem5.backend_api', './obtain.py')
-PySource('gem5.backend_api', './server.py')
+PySource('gem5.gEMA', './__init__.py')
+PySource('gem5.gEMA', './configure.py')
+PySource('gem5.gEMA', './handler.py')
+PySource('gem5.gEMA', './obtain.py')
+PySource('gem5.gEMA', './server.py')
 
