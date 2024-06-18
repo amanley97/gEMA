@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler
 from .obtain import get_config_opts
 from .configure import gEMAConfigurator
 
+
 class gEMAHandler(BaseHTTPRequestHandler):
     configurator = gEMAConfigurator()
 
@@ -23,17 +24,17 @@ class gEMAHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET requests."""
         endpoints = {
-                    "/config/options": self.send_config_options,
-                    "/config/saved" : self.send_saved_configs,
-                    "/help": self.list_endpoints
-                    }
+            "/config/options": self.send_config_options,
+            "/config/saved": self.send_saved_configs,
+            "/help": self.list_endpoints,
+        }
         handler = endpoints.get(self.path, self._not_found)
         handler()
 
     def do_PUT(self):
         """Handle PUT requests."""
-        path = self.path.split('/')
-        
+        path = self.path.split("/")
+
         if self.path == "/shutdown":
             self.handle_shutdown()
         elif len(path) == 4 and path[1] == "simulation":
@@ -54,13 +55,19 @@ class gEMAHandler(BaseHTTPRequestHandler):
 
     def send_saved_configs(self):
         """Send saved configurations to the client."""
-        def filter_objects( data, exclude_keys):
+
+        def filter_objects(data, exclude_keys):
             if isinstance(data, dict):
-                return {k: filter_objects(v, exclude_keys) for k, v in data.items() if k not in exclude_keys}
+                return {
+                    k: filter_objects(v, exclude_keys)
+                    for k, v in data.items()
+                    if k not in exclude_keys
+                }
             elif isinstance(data, list):
                 return [filter_objects(item, exclude_keys) for item in data]
             else:
                 return data
+
         self._set_headers()
         json_configs = filter_objects(self.configurator.configs, "object")
         self.wfile.write(json.dumps(json_configs, indent=4).encode())
@@ -81,9 +88,7 @@ class gEMAHandler(BaseHTTPRequestHandler):
     def handle_run_simulator(self, id):
         """Handle request to run a simulation in a separate process."""
         self._set_headers()
-        process = Process(
-            target=self.configurator.run_gem5_simulator, args=(id, )
-        )
+        process = Process(target=self.configurator.run_gem5_simulator, args=(id,))
         process.start()
         self.wfile.write((f"Starting simulation id: {id}\n").encode())
         process.join()

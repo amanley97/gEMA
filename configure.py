@@ -22,6 +22,7 @@ from gem5.components.cachehierarchies.classic.private_l1_cache_hierarchy import 
 )
 from gem5.components.processors.simple_processor import SimpleProcessor
 
+
 class gEMAConfigurator:
     def __init__(self):
         self.configs = {}
@@ -48,19 +49,23 @@ class gEMAConfigurator:
         resource = data["resource"][1]
         self.set_resource(configuration, resource_type, resource)
 
-        self.print_config_summary(brd, clk, proc, cpu_type, isa, ncores, mem_type, msize, cache)
+        self.print_config_summary(
+            brd, clk, proc, cpu_type, isa, ncores, mem_type, msize, cache
+        )
 
         return configuration
-    
+
     def save_config(self, id, data=None):
         if self.configs.get(f"config_{id}") is not None:
             if data is None:
-                print(f"Regenerating configuration for id {id} using previously saved configuration.")
+                print(
+                    f"Regenerating configuration for id {id} using previously saved configuration."
+                )
                 data = self.configs.get(f"config_{id}").get("config")
             else:
                 print(f"Regenerating configuration for id {id} using new data.")
             del self.configs[f"config_{id}"]
-        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         tmp_storage = dict(sim_id=id, generated_on=timestamp, config=data)
         self.configs[f"config_{id}"] = tmp_storage
 
@@ -72,7 +77,7 @@ class gEMAConfigurator:
             "l2_size": f"{cache_config['l2_size']}KiB",
             "l1d_assoc": cache_config["l1d_assoc"],
             "l1i_assoc": cache_config["l1i_assoc"],
-            "l2_assoc": cache_config["l2_assoc"]
+            "l2_assoc": cache_config["l2_assoc"],
         }
 
         cache_params = [
@@ -81,7 +86,9 @@ class gEMAConfigurator:
             if param not in ("self", "cls", "*args", "**kwargs")
         ]
 
-        init_params = {key: value for key, value in cache_opts.items() if key in cache_params}
+        init_params = {
+            key: value for key, value in cache_opts.items() if key in cache_params
+        }
 
         try:
             return cache_opts["class"](**init_params)
@@ -96,7 +103,9 @@ class gEMAConfigurator:
         else:
             print("Invalid resource type specified")
 
-    def print_config_summary(self, board, clk, proc, cpu, isa, cores, mem_type, mem_size, cache):
+    def print_config_summary(
+        self, board, clk, proc, cpu, isa, cores, mem_type, mem_size, cache
+    ):
         print("\n======CONFIGURATION======")
         print(
             f"Board: {board}, \nClock Frequency: {clk}, \nProcessor: {proc} \nCPU Type: {cpu}, \nISA: {isa}, "
@@ -111,7 +120,9 @@ class gEMAConfigurator:
                     name: {
                         "Type": desc.ptype_str,
                         "Desc": desc.desc,
-                        "Default": str(desc.default) if hasattr(desc, "default") else None,
+                        "Default": (
+                            str(desc.default) if hasattr(desc, "default") else None
+                        ),
                     }
                     for name, desc in obj._params.items()
                 },
@@ -133,8 +144,10 @@ class gEMAConfigurator:
 
     def run_gem5_simulator(self, id):
         print(f"Simulation ID: {id} PPID: {os.getppid()} PID: {os.getpid()}")
-        board = self.generate_config(self.configs.get(f"config_{id}").get('config'))
-        
+        board = self.generate_config(self.configs.get(f"config_{id}").get("config"))
+
         simulator = Simulator(board=board)
         simulator.run()
-        print(f"Exiting @ tick {simulator.get_current_tick()} because {simulator.get_last_exit_event_cause()}.")
+        print(
+            f"Exiting @ tick {simulator.get_current_tick()} because {simulator.get_last_exit_event_cause()}."
+        )

@@ -3,6 +3,7 @@
 
 import requests, json, os
 
+
 class APIClient:
     def __init__(self, base_url):
         self.base_url = base_url
@@ -16,7 +17,7 @@ class APIClient:
         endpoint = "/config/options"
         response = requests.get(self.base_url + endpoint)
         return self._handle_response(response)
-    
+
     def get_saved(self):
         endpoint = "/config/saved"
         response = requests.get(self.base_url + endpoint)
@@ -55,13 +56,16 @@ class APIClient:
             return False
         return False
 
+
 if __name__ == "__main__":
     port = input("Please enter the port number: ")
     base_url = f"http://localhost:{port}"
     client = APIClient(base_url)
 
     if not client.check_port():
-        print(f"Error: Cannot connect to port {port}. Please ensure the server is running and the port is correct.")
+        print(
+            f"Error: Cannot connect to port {port}. Please ensure the server is running and the port is correct."
+        )
     else:
         while True:
             print("\nSelect an endpoint to interact with:")
@@ -96,7 +100,7 @@ if __name__ == "__main__":
                     json_path = input("Enter the path to the JSON configuration file: ")
 
                     if os.path.exists(json_path):
-                        with open(json_path, 'r') as file:
+                        with open(json_path, "r") as file:
                             config_data = json.load(file)
                         print("Configure Simulation Response:")
                         response = client.configure_simulation(sim_id, config_data)
