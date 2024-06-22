@@ -140,7 +140,7 @@ class gEMAConfigGenerator:
                 print(f"Regenerating configuration for id {id} using new data.")
             del self.root.configs[f"config_{id}"]
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        tmp_storage = dict(sim_id=id, generated_on=timestamp, config=data)
+        tmp_storage = dict(generated_on=timestamp, config=data)
         self.root.configs[f"config_{id}"] = tmp_storage
 
     def get_cache_configuration(self, cache_config):

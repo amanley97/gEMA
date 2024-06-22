@@ -10,11 +10,16 @@ class gEMAServer:
     def __init__(self, root, port):
         self.root = root
         self.port = port
-        self.handler = lambda *args, **kwargs: gEMAHandler(self.root, *args, **kwargs)
+
+    def _create_handler(self):
+        return lambda *args, **kwargs: gEMAHandler(
+            self.root, *args, **kwargs
+        )
 
     def run(self):
         server_address = ("", self.port)
-        gEMAhttp = gEMAHTTP(server_address, self.handler)
+        handler = self._create_handler()
+        gEMAhttp = gEMAHTTP(server_address, handler)
         print(f"Starting server on port {self.port}.")
         print("For help, access /help on the server URL or consult the documentation.")
         gEMAhttp.serve_forever()
@@ -88,6 +93,7 @@ class gEMAHandler(BaseHTTPRequestHandler):
 
     def handle_run_simulator(self, sim_id):
         self._send_output(f"Starting simulation id: {sim_id}")
+        self.root.manager.start_subprocess(sim_id)
 
     def handle_shutdown(self):
         message = f"Terminating gEMA server process, pid: {os.getpid()}"
@@ -104,7 +110,6 @@ class gEMAHandler(BaseHTTPRequestHandler):
             response_message = (
                 f"Configured gem5 object, sim_id: {sim_id}. Ready to Simulate!"
             )
-            print(response_message)
             self._send_output(response_message)
         except Exception as e:
             self.send_error(500, f"Internal Server Error: {str(e)}")
