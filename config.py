@@ -1,16 +1,17 @@
-# gEMA/configure.py
-# Configures a user defined simulation object.
+# gEMA/config.py
 
 import m5, json, inspect
 from datetime import datetime
 from gem5.components import *
 from gem5.components.processors.cpu_types import *
 from gem5.components.memory import *
-from m5.stats import *
 from gem5.resources.resource import *
-from gem5.simulate.simulator import Simulator
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.no_cache import NoCache
+from gem5.components.boards.x86_board import X86Board
+from gem5.components.memory import multi_channel, single_channel
+from gem5.components.processors.cpu_types import get_cpu_types_str_set
+from gem5.components.processors.simple_processor import SimpleProcessor
 from gem5.components.cachehierarchies.classic.private_l1_shared_l2_cache_hierarchy import (
     PrivateL1SharedL2CacheHierarchy,
 )
@@ -23,9 +24,71 @@ from gem5.components.cachehierarchies.classic.private_l1_cache_hierarchy import 
 from gem5.components.processors.simple_processor import SimpleProcessor
 
 
-class gEMAConfigurator:
-    def __init__(self):
-        self.configs = {}
+class gEMAConfigRetreiver:
+    """ Obtains available configuration options from gem5. """
+
+    def __init__(self, root) -> None:
+        self.root = root
+        self.single_channel_memory = [name for name, obj in inspect.getmembers(single_channel) if inspect.isfunction(obj)]
+        self.multi_channel_memory = [name for name, obj in inspect.getmembers(multi_channel) if inspect.isfunction(obj)]
+        self.cache_types = [
+                "NoCache",
+                "PrivateL1SharedL2CacheHierarchy",
+                "PrivateL1PrivateL2CacheHierarchy",
+                "PrivateL1CacheHierarchy",
+            ]  # TODO: Fetch the cache types dynamically.
+
+    def _get_init_parameters(self, *classes):
+        params_dict = {
+            cls.__name__: [
+                param
+                for param in inspect.signature(cls.__init__).parameters
+                if param not in ("self", "cls", "*args", "**kwargs")
+            ]
+            for cls in classes
+        }
+        return params_dict
+
+    def get_config_opts(self):
+        try:
+            cache_class_objects = [
+                globals()[name] for name in self.cache_types if name in globals()
+            ]
+
+            classes_to_inspect = [
+                SimpleBoard,
+                X86Board,
+                SimpleProcessor,
+                *cache_class_objects,
+            ]
+            class_params = self._get_init_parameters(*classes_to_inspect)
+
+            mem_types = self.single_channel_memory + self.multi_channel_memory
+            config = {}
+            for board_class in [SimpleBoard, X86Board]:
+                board_name = board_class.__name__
+                cpu_types = list(get_cpu_types_str_set())
+                config[board_name] = {
+                    "clk_freq": class_params[board_name],
+                    "Memory": mem_types,
+                    "Processor": cpu_types,
+                    "Cache Hierarchy": {
+                        name: class_params[name]
+                        for name in self.cache_types
+                        if name in class_params
+                    },
+                }
+            return config
+        except KeyError as e:
+            print(f"Key error: {e} - Check if cache class names are correct and imported")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+class gEMAConfigGenerator:
+    """ Configures a user defined simulation object. """
+
+    def __init__(self, root):
+        self.root = root
 
     def generate_config(self, data):
         brd = eval(data["board"]["type"])
@@ -56,18 +119,18 @@ class gEMAConfigurator:
         return configuration
 
     def save_config(self, id, data=None):
-        if self.configs.get(f"config_{id}") is not None:
+        if self.root.configs.get(f"config_{id}") is not None:
             if data is None:
                 print(
                     f"Regenerating configuration for id {id} using previously saved configuration."
                 )
-                data = self.configs.get(f"config_{id}").get("config")
+                data = self.root.configs.get(f"config_{id}").get("config")
             else:
                 print(f"Regenerating configuration for id {id} using new data.")
-            del self.configs[f"config_{id}"]
+            del self.root.configs[f"config_{id}"]
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         tmp_storage = dict(sim_id=id, generated_on=timestamp, config=data)
-        self.configs[f"config_{id}"] = tmp_storage
+        self.root.configs[f"config_{id}"] = tmp_storage
 
     def get_cache_configuration(self, cache_config):
         cache_opts = {
@@ -141,13 +204,3 @@ class gEMAConfigurator:
 
         with open("./m5out/config.json", "w") as file:
             json.dump(config, file, indent=4)
-
-    def run_gem5_simulator(self, id):
-        print(f"Simulation ID: {id} PPID: {os.getppid()} PID: {os.getpid()}")
-        board = self.generate_config(self.configs.get(f"config_{id}").get("config"))
-
-        simulator = Simulator(board=board)
-        simulator.run()
-        print(
-            f"Exiting @ tick {simulator.get_current_tick()} because {simulator.get_last_exit_event_cause()}."
-        )

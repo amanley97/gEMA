@@ -1,15 +1,4 @@
-# gEMA/__init__.py
-# gEMA: gem5 External Modules API
-
-__version__ = "0.1"
-__all__ = ['gEMA']
-
-# Import the gEMA class from the gEMA.py file
-import logging
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-logger.info(f"gEMA initialized. version: {__version__}")
+# gEMA/gEMA.py
 
 from gEMA.config import gEMAConfigGenerator, gEMAConfigRetreiver
 from gEMA.manager import gEMASimManager
@@ -28,4 +17,3 @@ class gEMA:
 
     def run(self):
         self.server.run()
-

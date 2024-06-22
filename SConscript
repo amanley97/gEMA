@@ -2,9 +2,8 @@
 Import('*')
 
 # gEMA SOURCES
-PySource('gem5.gEMA', './__init__.py')
-PySource('gem5.gEMA', './configure.py')
-PySource('gem5.gEMA', './handler.py')
-PySource('gem5.gEMA', './obtain.py')
-PySource('gem5.gEMA', './server.py')
+PySource('gEMA', '__init__.py')
+PySource('gEMA', 'config.py')
+PySource('gEMA', 'manager.py')
+PySource('gEMA', 'server.py')
 

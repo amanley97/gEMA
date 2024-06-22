@@ -50,7 +50,7 @@ class APIClient:
     def check_port(self):
         try:
             response = requests.get(self.base_url)
-            if response.status_code == 404:
+            if response.status_code == 200 or response.status_code == 404:
                 return True
         except requests.exceptions.ConnectionError:
             return False
