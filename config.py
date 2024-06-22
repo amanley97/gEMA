@@ -25,18 +25,26 @@ from gem5.components.processors.simple_processor import SimpleProcessor
 
 
 class gEMAConfigRetreiver:
-    """ Obtains available configuration options from gem5. """
+    """Obtains available configuration options from gem5."""
 
     def __init__(self, root) -> None:
         self.root = root
-        self.single_channel_memory = [name for name, obj in inspect.getmembers(single_channel) if inspect.isfunction(obj)]
-        self.multi_channel_memory = [name for name, obj in inspect.getmembers(multi_channel) if inspect.isfunction(obj)]
+        self.single_channel_memory = [
+            name
+            for name, obj in inspect.getmembers(single_channel)
+            if inspect.isfunction(obj)
+        ]
+        self.multi_channel_memory = [
+            name
+            for name, obj in inspect.getmembers(multi_channel)
+            if inspect.isfunction(obj)
+        ]
         self.cache_types = [
-                "NoCache",
-                "PrivateL1SharedL2CacheHierarchy",
-                "PrivateL1PrivateL2CacheHierarchy",
-                "PrivateL1CacheHierarchy",
-            ]  # TODO: Fetch the cache types dynamically.
+            "NoCache",
+            "PrivateL1SharedL2CacheHierarchy",
+            "PrivateL1PrivateL2CacheHierarchy",
+            "PrivateL1CacheHierarchy",
+        ]  # TODO: Fetch the cache types dynamically.
 
     def _get_init_parameters(self, *classes):
         params_dict = {
@@ -80,12 +88,15 @@ class gEMAConfigRetreiver:
                 }
             return config
         except KeyError as e:
-            print(f"Key error: {e} - Check if cache class names are correct and imported")
+            print(
+                f"Key error: {e} - Check if cache class names are correct and imported"
+            )
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
 
+
 class gEMAConfigGenerator:
-    """ Configures a user defined simulation object. """
+    """Configures a user defined simulation object."""
 
     def __init__(self, root):
         self.root = root

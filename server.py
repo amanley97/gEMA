@@ -3,15 +3,14 @@
 import json, os
 from http.server import BaseHTTPRequestHandler, HTTPServer as gEMAHTTP
 
+
 class gEMAServer:
-    """ Server class for managing gEMA backend operations. """
+    """Server class for managing gEMA backend operations."""
 
     def __init__(self, root, port):
         self.root = root
         self.port = port
-        self.handler = lambda *args, **kwargs: gEMAHandler(
-            self.root, *args, **kwargs
-        )
+        self.handler = lambda *args, **kwargs: gEMAHandler(self.root, *args, **kwargs)
 
     def run(self):
         server_address = ("", self.port)
@@ -22,7 +21,7 @@ class gEMAServer:
 
 
 class gEMAHandler(BaseHTTPRequestHandler):
-    """ HTTP request handler with routes defined for service operations. """
+    """HTTP request handler with routes defined for service operations."""
 
     def __init__(self, root, *args, **kwargs):
         self.root = root
@@ -102,7 +101,9 @@ class gEMAHandler(BaseHTTPRequestHandler):
             data = self.rfile.read(content_length)
             received_data = json.loads(data.decode("utf-8"))
             self.root.configurator.save_config(sim_id, received_data)
-            response_message = f"Configured gem5 object, sim_id: {sim_id}. Ready to Simulate!"
+            response_message = (
+                f"Configured gem5 object, sim_id: {sim_id}. Ready to Simulate!"
+            )
             print(response_message)
             self._send_output(response_message)
         except Exception as e:

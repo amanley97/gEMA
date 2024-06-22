@@ -4,8 +4,9 @@ from gEMA.config import gEMAConfigGenerator, gEMAConfigRetreiver
 from gEMA.manager import gEMASimManager
 from gEMA.server import gEMAServer
 
+
 class gEMA:
-    """ Main application class. """
+    """Main application class."""
 
     def __init__(self, port):
         self.configurator = gEMAConfigGenerator(self)

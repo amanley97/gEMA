@@ -2,7 +2,7 @@
 # gEMA: gem5 External Modules API
 
 __version__ = "0.1"
-__all__ = ['gEMA']
+__all__ = ["gEMA"]
 
 # Import the gEMA class from the gEMA.py file
 import logging
@@ -15,8 +15,9 @@ from gEMA.config import gEMAConfigGenerator, gEMAConfigRetreiver
 from gEMA.manager import gEMASimManager
 from gEMA.server import gEMAServer
 
+
 class gEMA:
-    """ Main application class. """
+    """Main application class."""
 
     def __init__(self, port):
         self.configurator = gEMAConfigGenerator(self)
@@ -28,4 +29,3 @@ class gEMA:
 
     def run(self):
         self.server.run()
-
