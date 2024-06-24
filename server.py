@@ -1,57 +1,150 @@
 # gEMA/server.py
-import sys, os
-from http.server import HTTPServer
-from .handler import BackendHandler
-from .obtain import *
 
-class BackendServer:
-    def __init__(self, port=5000):
+import json, os
+from http.server import BaseHTTPRequestHandler, HTTPServer as gEMAHTTP
+
+
+class gEMAServer:
+    """Server class for managing gEMA backend operations."""
+
+    def __init__(self, root, port):
+        """Initialize the gEMA server class."""
+        self.root = root
         self.port = port
-        self.brd_config = None
-        self.handler = self.handler_factory()
 
-    def handler_factory(self):
-        # Factory function to create a handler with access to the server instance
-        server_instance = self
-        class CustomHandler(BackendHandler):
-            def __init__(self, *args, **kwargs):
-                self.server_instance = server_instance
-                super().__init__(*args, **kwargs)
-        return CustomHandler
+    def _create_handler(self):
+        """Generates the server handler and passes the root."""
+        return lambda *args, **kwargs: gEMAHandler(
+            self.root, *args, **kwargs
+        )
 
-    def run_server(self):
-        server_address = ('', self.port)
-        httpd = HTTPServer(server_address, self.handler)
+    def run(self):
+        """Runs the gEMA server."""
+        server_address = ("", self.port)
+        handler = self._create_handler()
+        gEMAhttp = gEMAHTTP(server_address, handler)
+        print(f"Starting server on port {self.port}.")
+        print("For help, access /help on the server URL or consult the documentation.")
+        gEMAhttp.serve_forever()
 
-        print(f'Starting server on port {self.port}...')
-        httpd.serve_forever()
 
-    def run_gem5_simulator(self):
-        with open("./m5out/stats.txt", 'r+') as file:
-            file.seek(0)
-            file.truncate()
+class gEMAHandler(BaseHTTPRequestHandler):
+    """HTTP request handler with routes defined for service operations."""
 
-        with open('m5out/output.txt', "w") as f:
-            sys.stdout = f
-            sys.stderr = f
-            print("Simulation PID: ", os.getpid())
-            user_id = 'default'
-            data = self.handler.user_data_storage.get(user_id)
-            if self.brd_config is None:
-                self.brd_config = generate_config(data)
+    def __init__(self, root, *args, **kwargs):
+        """Initialize the gEMA handler class."""
+        self.root = root
+        super().__init__(*args, **kwargs)
+
+    def _set_headers(self, status=200, content_type="application/json"):
+        """Set HTTP response headers."""
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Connection", "close")
+        self.end_headers()
+
+    def _send_output(self, data, status=200):
+        """Send JSON response."""
+        self._set_headers(status)
+        response = json.dumps(data, indent=4).encode()
+        self.wfile.write(response)
+
+    def _send_error(self, status, message):
+        """Send JSON error response."""
+        self._set_headers(status)
+        response = json.dumps({"error": message}, indent=4).encode()
+        self.wfile.write(response)
+
+    def _not_found(self):
+        """Send 404 Not Found response."""
+        self._send_error(404, "Not Found")
+
+    def do_GET(self):
+        """Handle GET requests."""
+        endpoints = {
+            "/config/options": self.send_config_options,
+            "/simulation/saved": self.send_saved_simulations,
+            "/help": self.list_endpoints,
+        }
+        handler = endpoints.get(self.path, self._not_found)
+        handler()
+
+    def do_PUT(self):
+        """Handle PUT requests."""
+        path = self.path.split("/")
+        
+        if self.path == "/shutdown":
+            self.handle_shutdown()
+        elif len(path) == 4 and path[1] == "simulation":
+            config_id = path[2]
+            action = path[3]
+            if action == "run":
+                self.handle_run_simulator(config_id)
+            elif action == "configure":
+                self.handle_external_data(config_id)
             else:
-                del self.brd_config
-                self.brd_config = generate_config(data)
-            simulator = Simulator(board=self.brd_config)
-            simulator.run()
-            print(
-                "Exiting @ tick {} because {}.".format(
-                    simulator.get_current_tick(), simulator.get_last_exit_event_cause()
-                )
-            )
-            sys.stdout.flush()
-            sys.stderr.flush()
+                self._send_error(400, "Simulation subcommand invalid.")
+        else:
+            self._not_found()
 
-        dump()
-        reset()
-        m5.statsreset()
+    def send_config_options(self):
+        """Send configuration options."""
+        try:
+            options = self.root.retriever.get_config_opts()
+            self._send_output(options)
+        except Exception as e:
+            self._send_error(500, f"Internal Server Error: {str(e)}")
+
+    def send_saved_simulations(self):
+        """Send saved simulations."""
+        try:
+            data = self.root.sims
+            self._send_output(data)
+        except Exception as e:
+            self._send_error(500, f"Internal Server Error: {str(e)}")
+
+    def list_endpoints(self):
+        """List available endpoints."""
+        endpoints = {
+            "GET /help": "Displays available endpoints",
+            "GET /config/options": "Get configuration options",
+            "GET /simulation/saved": "Get saved simulations",
+            "PUT /simulation/{config_id}/configure": "Submit user data for simulation configuration",
+            "PUT /simulation/{config_id}/run": "Run the simulation",
+            "PUT /shutdown": "Shutdown the server",
+        }
+        self._send_output(endpoints)
+
+    def handle_run_simulator(self, config_id):
+        """Handle running a simulation."""
+        try:
+            sim_id = self.root.manager.get_lowest_sim_id(config_id)
+            self.root.manager.start_subprocess(sim_id, config_id)
+            response_message = f"Starting simulation id: {sim_id} using configuration id: {config_id}"
+            self._send_output(response_message)
+        except Exception as e:
+            self._send_error(500, f"Internal Server Error: {str(e)}")
+
+    def handle_shutdown(self):
+        """Handle server shutdown."""
+        try:
+            message = f"Terminating gEMA server process, pid: {os.getpid()}"
+            self._send_output({"message": message})
+            print(message)
+            os._exit(0)
+        except Exception as e:
+            self._send_error(500, f"Internal Server Error: {str(e)}")
+
+    def handle_external_data(self, config_id):
+        """Handle external data for simulation configuration."""
+        try:
+            content_length = int(self.headers["Content-Length"])
+            data = self.rfile.read(content_length)
+            received_data = json.loads(data.decode("utf-8"))
+            self.root.configurator.save_config(config_id, received_data)
+            response_message = f"Configured gem5 object, config_id: {config_id}. Ready to Simulate!"
+            self._send_output(response_message)
+        except json.JSONDecodeError:
+            self._send_error(400, "Invalid JSON data received.")
+        except Exception as e:
+            self._send_error(500, f"Internal Server Error: {str(e)}")
