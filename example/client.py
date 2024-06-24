@@ -19,17 +19,17 @@ class APIClient:
         return self._handle_response(response)
 
     def get_saved(self):
-        endpoint = "/config/saved"
+        endpoint = "/simulation/saved"
         response = requests.get(self.base_url + endpoint)
         return self._handle_response(response)
 
-    def configure_simulation(self, sim_id, config_data):
-        endpoint = f"/simulation/{sim_id}/configure"
+    def configure_simulation(self, config_id, config_data):
+        endpoint = f"/simulation/{config_id}/configure"
         response = requests.put(self.base_url + endpoint, json=config_data)
         return self._handle_response(response)
 
-    def run_simulation(self, sim_id):
-        endpoint = f"/simulation/{sim_id}/run"
+    def run_simulation(self, config_id):
+        endpoint = f"/simulation/{config_id}/run"
         response = requests.put(self.base_url + endpoint)
         return self._handle_response(response)
 
@@ -71,9 +71,9 @@ if __name__ == "__main__":
             print("\nSelect an endpoint to interact with:")
             print("1. GET /help")
             print("2. GET /config/options")
-            print("3. GET /config/saved")
-            print("4. PUT /simulation/{sim_id}/configure")
-            print("5. PUT /simulation/{sim_id}/run")
+            print("3. GET /simulation/saved")
+            print("4. PUT /simulation/{config_id}/configure")
+            print("5. PUT /simulation/{config_id}/run")
             print("6. PUT /shutdown")
             print("7. Exit")
 
@@ -96,22 +96,22 @@ if __name__ == "__main__":
                     print(response)
 
                 case "4":
-                    sim_id = input("Enter simulation ID: ")
+                    config_id = input("Enter configuration ID: ")
                     json_path = input("Enter the path to the JSON configuration file: ")
 
                     if os.path.exists(json_path):
                         with open(json_path, "r") as file:
                             config_data = json.load(file)
                         print("Configure Simulation Response:")
-                        response = client.configure_simulation(sim_id, config_data)
+                        response = client.configure_simulation(config_id, config_data)
                         print(response)
                     else:
                         print(f"File not found: {json_path}")
 
                 case "5":
-                    sim_id = input("Enter simulation ID: ")
+                    config_id = input("Enter configuration ID: ")
                     print("Run Simulation Response:")
-                    response = client.run_simulation(sim_id)
+                    response = client.run_simulation(config_id)
                     print(response)
 
                 case "6":

@@ -28,6 +28,7 @@ class gEMAConfigRetreiver:
     """Obtains available configuration options from gem5."""
 
     def __init__(self, root) -> None:
+        """Initialize the gEMA configuration retreiver class."""
         self.root = root
         self.single_channel_memory = [
             name
@@ -47,6 +48,7 @@ class gEMAConfigRetreiver:
         ]  # TODO: Fetch the cache types dynamically.
 
     def _get_init_parameters(self, *classes):
+        """Returns a dictionary of init parameters from a class."""
         params_dict = {
             cls.__name__: [
                 param
@@ -58,33 +60,25 @@ class gEMAConfigRetreiver:
         return params_dict
 
     def get_config_opts(self):
-        try:
-            cache_class_objects = [
-                globals()[name] for name in self.cache_types if name in globals()
-            ]
-
-            classes_to_inspect = [
+        """Obtains all available configuration options from the standard library."""
+        cache_classes = [globals()[name] for name in self.cache_types if name in globals()]
+        classes_to_inspect = [
                 SimpleBoard,
                 X86Board,
                 SimpleProcessor,
-                *cache_class_objects,
-            ]
+                *cache_classes
+        ]
+        try: 
             class_params = self._get_init_parameters(*classes_to_inspect)
 
-            mem_types = self.single_channel_memory + self.multi_channel_memory
             config = {}
             for board_class in [SimpleBoard, X86Board]:
                 board_name = board_class.__name__
-                cpu_types = list(get_cpu_types_str_set())
                 config[board_name] = {
-                    "clk_freq": class_params[board_name],
-                    "Memory": mem_types,
-                    "Processor": cpu_types,
-                    "Cache Hierarchy": {
-                        name: class_params[name]
-                        for name in self.cache_types
-                        if name in class_params
-                    },
+                    "board" : class_params[board_name][0],
+                    "memory" : self.single_channel_memory + self.multi_channel_memory,
+                    "processor" : list(get_cpu_types_str_set()),
+                    "cache_hierarchy" : {name: class_params[name] for name in self.cache_types if name in class_params}
                 }
             return config
         except KeyError as e:
@@ -99,9 +93,11 @@ class gEMAConfigGenerator:
     """Configures a user defined simulation object."""
 
     def __init__(self, root):
+        """Initialize the gEMA configuration generator class."""
         self.root = root
 
-    def generate_config(self, data):
+    def generate_config(self, data:dict):
+        """Returns a configuration given a provided json."""
         brd = eval(data["board"]["type"])
         clk = f"{data['board']['clk']}GHz"
         proc = eval(data["processor"]["type"])
@@ -130,18 +126,18 @@ class gEMAConfigGenerator:
         return configuration
 
     def save_config(self, id, data=None):
-        if self.root.configs.get(f"config_{id}") is not None:
+        if self.root.sims.get(f"config_{id}") is not None:
             if data is None:
                 print(
                     f"Regenerating configuration for id {id} using previously saved configuration."
                 )
-                data = self.root.configs.get(f"config_{id}").get("config")
+                data = self.root.sims.get(f"config_{id}").get("config")
             else:
                 print(f"Regenerating configuration for id {id} using new data.")
-            del self.root.configs[f"config_{id}"]
+            del self.root.sims[f"config_{id}"]
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        tmp_storage = dict(generated_on=timestamp, config=data)
-        self.root.configs[f"config_{id}"] = tmp_storage
+        tmp_storage = dict(generated_on=timestamp, config=data, simulations=[])
+        self.root.sims[f"config_{id}"] = tmp_storage
 
     def get_cache_configuration(self, cache_config):
         cache_opts = {
@@ -169,17 +165,20 @@ class gEMAConfigGenerator:
         except ValueError:
             print(f"Failed to generate cache: {cache_opts['class']}")
 
-    def set_resource(self, board, resource_type, resource):
+    def set_resource(self, config, resource_type, resource):
+        """Sets the resource of a given configuration.
+        default: uses gem5-resources, custom: sets a path to a binary"""
         if resource_type == "default":
-            board.set_se_binary_workload(obtain_resource(resource))
+            config.set_se_binary_workload(obtain_resource(resource))
         elif resource_type == "custom":
-            board.set_se_binary_workload(BinaryResource(resource))
+            config.set_se_binary_workload(BinaryResource(resource))
         else:
             print("Invalid resource type specified")
 
     def print_config_summary(
         self, board, clk, proc, cpu, isa, cores, mem_type, mem_size, cache
     ):
+        """Prints the selected configuration."""
         print("\n======CONFIGURATION======")
         print(
             f"Board: {board}, \nClock Frequency: {clk}, \nProcessor: {proc} \nCPU Type: {cpu}, \nISA: {isa}, "
