@@ -15,6 +15,7 @@
 from dataclasses import (
     dataclass,
     field,
+    asdict
 )
 from typing import Optional
 from pathlib import Path
@@ -67,3 +68,8 @@ class GemaSimulation:
     generated_on: str
     path: Path
     pid: Optional[int] = None
+
+    def to_dict(self):
+        data = asdict(self)
+        data["path"] = str(self.path)
+        return data

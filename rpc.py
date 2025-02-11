@@ -502,7 +502,7 @@ class GemaFunctions:
         Returns:
             list[GemaSimulation]: A list of all stored simulation objects
         """
-        return self.root.sims
+        return [sim.to_dict() for sim in self.root.sims]
 
     @rpc_json_response
     def manage_sim(self, id: int, cmd: str):
