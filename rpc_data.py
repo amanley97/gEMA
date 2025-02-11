@@ -17,7 +17,7 @@ from dataclasses import (
     field,
 )
 from typing import Optional
-
+from pathlib import Path
 
 @dataclass
 class GemaBoard:
@@ -65,5 +65,5 @@ class GemaSimulation:
     sim_id: int
     config: GemaConfiguration
     generated_on: str
-    path: str
+    path: Path
     pid: Optional[int] = None

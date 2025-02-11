@@ -23,6 +23,8 @@ simulation management, and remote procedure calls through a unified interface.
 __version__ = "1.0"
 __all__ = ["Gema"]
 
+from typing import Optional
+from pathlib import Path
 from gem5.utils.gema.config import GemaConfigGenerator
 from gem5.utils.gema.manager import GemaSimulationManager
 from gem5.utils.gema.options import GemaOptionRetreiver
@@ -53,7 +55,7 @@ class Gema:
         centralized coordination.
     """
 
-    def __init__(self, port: int):
+    def __init__(self, port: int, m5_override: Optional[Path]=None):
         """Initialize a new gEMA instance.
 
         Creates and initializes all component managers and controllers needed
@@ -66,7 +68,7 @@ class Gema:
         """
         self.configurator = GemaConfigGenerator(self)
         self.retriever = GemaOptionRetreiver(self)
-        self.manager = GemaSimulationManager(self)
+        self.manager = GemaSimulationManager(self, m5_override)
         self.server = GemaServer(self, port)
         self.sims = []
 

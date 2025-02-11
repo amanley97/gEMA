@@ -54,6 +54,7 @@ class GemaServer:
         server.register_introspection_functions()
         server.register_instance(GemaFunctions(self.root))
         print(f"Starting server on port {self.port}.")
+        print("SConscript tests")
         print(
             "For help, call the 'get_endpoints' method or consult the documentation."
         )
@@ -253,7 +254,7 @@ class GemaFunctions:
         return endpoints
 
     @rpc_json_response
-    def get_config_options(self):
+    def get_config_options(self) -> dict|None:
         """Retrieve all available configuration options from the gem5 system.
 
         Returns:

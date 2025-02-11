@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from gem5.utils.gema import Gema
@@ -39,8 +39,9 @@ class GemaSimulationManager:
     provides functionality to control running simulations (pause, resume, kill).
     """
 
-    def __init__(self, root: Gema) -> None:
+    def __init__(self, root: Gema, m5_dir_override: Optional[Path]=None) -> None:
         self.root = root
+        self.m5_dir = m5_dir_override
 
     def _generate_log_path(self, sim_id: int, config_id: int) -> Path:
         """
@@ -58,7 +59,7 @@ class GemaSimulationManager:
 
         here = Path(inspect.getfile(inspect.currentframe())).resolve()
         gem5_home = here.parents[5]
-        log_path = gem5_home / f"m5out/sim_{sim_id}_config_{config_id}"
+        log_path = gem5_home
         return log_path
 
     def _generate_sim_save(self, config_id: int) -> int:
@@ -77,11 +78,15 @@ class GemaSimulationManager:
         current_sim_id = len(self.root.sims) + 1
         config = self.root.configurator._get_config_by_id(config_id)
 
+        m5_path = self.m5_dir
+        if m5_path == None:
+            m5_path = self._generate_log_path(current_sim_id, config_id)
+
         new_sim = GemaSimulation(
             sim_id=current_sim_id,
             config=config,
             generated_on=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            path=str(self._generate_log_path(current_sim_id, config_id)),
+            path=m5_path.joinpath(Path(f"m5out/sim_{current_sim_id}_config_{config_id}")),
             pid=os.getpid(),
         )
 
