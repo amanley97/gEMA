@@ -54,7 +54,6 @@ class GemaServer:
         server.register_introspection_functions()
         server.register_instance(GemaFunctions(self.root))
         print(f"Starting server on port {self.port}.")
-        print("SConscript tests")
         print(
             "For help, call the 'get_endpoints' method or consult the documentation."
         )
@@ -93,7 +92,6 @@ class GemaFunctions:
         def wrapper(*args, **kwargs):
             try:
                 result = func(*args, **kwargs)
-                print(result)
 
                 def convert(obj):
                     if is_dataclass(obj):
