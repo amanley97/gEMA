@@ -177,8 +177,8 @@ class GemaConfigGenerator:
         self,
         config_id: int,
         type: str,
-        l1d_size: int,
-        l1i_size: int,
+        l1d_size: Optional[int] = None,
+        l1i_size: Optional[int] = None,
         l2_size: Optional[int] = None,
         l1d_assoc: Optional[int] = None,
         l1i_assoc: Optional[int] = None,
@@ -205,7 +205,7 @@ class GemaConfigGenerator:
                  configuration doesn't exist or if the cache sizes are invalid (≤ 0).
         """
         config = self._get_config_by_id(config_id)
-        if config is None or l1d_size <= 0 or l1i_size <= 0:
+        if config is None:
             return False
 
         config.cache = GemaCache(
@@ -340,8 +340,16 @@ class GemaConfigGenerator:
         try:
             cache_class = globals()[cache_config.type]
             init_params = {
-                "l1d_size": f"{cache_config.l1d_size}KiB",
-                "l1i_size": f"{cache_config.l1i_size}KiB",
+                "l1d_size": (
+                    f"{cache_config.l1d_size}KiB"
+                    if cache_config.l1d_size != 0
+                    else None
+                ),
+                "l1i_size": (
+                    f"{cache_config.l1i_size}KiB"
+                    if cache_config.l1i_size != 0
+                    else None
+                ),
                 "l2_size": (
                     f"{cache_config.l2_size}KiB"
                     if cache_config.l2_size
